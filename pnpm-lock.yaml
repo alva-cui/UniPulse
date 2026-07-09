@@ -56,6 +56,9 @@ importers:
       '@dcloudio/uni-quickapp-webview':
         specifier: 3.0.0-5010420260703001
         version: 3.0.0-5010420260703001(postcss@8.5.16)(rollup@4.14.3)(vue@3.5.39(typescript@4.9.4))
+      '@qiun/ucharts':
+        specifier: 2.5.0-20230101
+        version: 2.5.0-20230101
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@4.9.4)(vue@3.5.39(typescript@4.9.4))
@@ -1448,6 +1451,9 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@qiun/ucharts@2.5.0-20230101':
+    resolution: {integrity: sha512-C7ccBgfPuGF6dxTRuMW0NPPMSCf1k/kh3I9zkRVBc5PaivudX/rPL+jd2Wty6gn5ya5L3Ob+YmYe09V5xw66Cw==}
 
   '@rollup/pluginutils@5.1.0':
     resolution: {integrity: sha512-XTIWOPPcpvyKI6L1NHo0lFlCyznUEyPmPY1mc3KpPVDYulHSTvyeLNVW00QTLIAFNhR3kYnJTQHeGqU4M3n09g==}
@@ -6213,6 +6219,8 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
+
+  '@qiun/ucharts@2.5.0-20230101': {}
 
   '@rollup/pluginutils@5.1.0(rollup@4.14.3)':
     dependencies:

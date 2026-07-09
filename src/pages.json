@@ -11,6 +11,12 @@
       "style": {
         "navigationBarTitleText": "Pinia"
       }
+    },
+    {
+      "path": "pages/chart/index",
+      "style": {
+        "navigationBarTitleText": "Chart"
+      }
     }
   ],
   "globalStyle": {

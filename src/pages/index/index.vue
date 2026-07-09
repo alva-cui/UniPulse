@@ -1,8 +1,8 @@
 <template>
   <view class="page">
-    <image class="logo" src="/static/logo.png" mode="aspectFit" />
+    <image class="logo" src="@/static/logo.png" mode="aspectFit" />
     <text class="title">{{ appName }}</text>
-    <text class="subtitle">uni-app · 多端 · 前后端分离</text>
+    <text class="subtitle">uni-app · 多端</text>
 
     <view class="card">
       <view class="row">
@@ -23,7 +23,11 @@
       </view>
       <view class="row">
         <text class="label">Pinia</text>
-        <text class="value" @click="toPinia">Pinia</text>
+        <text class="value" @click="toPinia">toPinia</text>
+      </view>
+      <view class="row">
+        <text class="label">Chart</text>
+        <text class="value" @click="toChart">toChart</text>
       </view>
     </view>
 
@@ -44,7 +48,7 @@
 import { ref, onMounted } from 'vue'
 import { APP_NAME, env } from '@/config/env'
 import { getCompilePlatform, getSystemInfo } from '@/utils/platform'
-import { fetchHealth } from '@/api/health'
+// import { fetchHealth } from '@/api/health'
 
 const appName = APP_NAME
 const platform = ref(getCompilePlatform())
@@ -56,6 +60,10 @@ const healthText = ref('未探测')
 
 function toPinia() {
   uni.navigateTo({ url: '/pages/pinia/index' })
+}
+
+function toChart() {
+  uni.navigateTo({ url: '/pages/chart/index' })
 }
 
 onMounted(() => {
@@ -71,9 +79,10 @@ async function checkHealth() {
   loading.value = true
   healthText.value = '请求中…'
   try {
-    const data = await fetchHealth()
+    // const data = await fetchHealth()
+    // healthText.value = data?.status ? `${data.status}${data.service ? ` · ${data.service}` : ''}` : 'ok'
+    healthText.value = 'ok'
     healthOk.value = true
-    healthText.value = data?.status ? `${data.status}${data.service ? ` · ${data.service}` : ''}` : 'ok'
   } catch (e) {
     healthOk.value = false
     healthText.value = e instanceof Error ? e.message : '不可达'
