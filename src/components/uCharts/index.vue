@@ -96,18 +96,18 @@ const initChart = () => {
             fallbackInit(width, height)
             return
           }
-          const canvas = res[0].node
-          const ctx = canvas.getContext('2d')
+          const canvas = res.node
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })
 
           canvas.width = width * dpr
           canvas.height = height * dpr
-          ctx.scale(dpr, dpr)
+          ctx.scale(dpr, dpr) // 👈 底层已经做了物理高清放大
 
           uChartsInstance = new uCharts({
             type: props.type,
             context: ctx,
             canvas2d: true,
-            pixelRatio: dpr,
+            pixelRatio: 1,
             width: width,
             height: height,
             ...getCommonConfig()

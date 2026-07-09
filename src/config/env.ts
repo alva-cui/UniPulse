@@ -16,10 +16,10 @@ function resolveDefaultBase(): string {
 
   // 小程序 / App 需写完整域名（真机/模拟器不能用 localhost 时请换成局域网 IP 或线上域名）
   if (import.meta.env.DEV) {
-    return 'http://127.0.0.1:3000/api'
+    return 'http://localhost:3000/api'
   }
 
-  return envBase 
+  return envBase
 }
 
 export const APP_NAME = 'APP应用'
