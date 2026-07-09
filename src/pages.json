@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "多端应用"
+      }
+    },
+    {
+      "path": "pages/pinia/index",
+      "style": {
+        "navigationBarTitleText": "Pinia"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "多端应用",
+    "navigationBarBackgroundColor": "#F0F4FF",
+    "backgroundColor": "#F7F8FA"
+  }
+}
