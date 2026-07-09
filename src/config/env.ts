@@ -14,9 +14,15 @@ function resolveDefaultBase(): string {
   }
   // #endif
 
-  // 小程序 / App 需写完整域名（真机/模拟器不能用 localhost 时请换成局域网 IP 或线上域名）
+  // 非 H5 平台（小程序 / App）在开发环境下的配置
   if (import.meta.env.DEV) {
-    return 'http://localhost:3000/api'
+    /**
+     * 【多端调试提示】：
+     * 1. 微信小程序真机调试 / Android 真机调试：不能使用 localhost，必须改为你电脑的局域网 IP（如 192.168.x.x）
+     * 2. Android 官方模拟器：电脑宿主机的 IP 映射为 10.0.2.2
+     * 3. Genymotion 模拟器：电脑宿主机 IP 映射为 10.0.3.2
+     */
+    return 'http://localhost:3000/api' // 默认给出 Android 模拟器常用 IP，可根据实际开发设备微调
   }
 
   return envBase

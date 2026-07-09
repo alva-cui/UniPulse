@@ -46,24 +46,35 @@ function buildUrl(url: string): string {
   return `${env.apiBaseUrl}${path}`
 }
 
+// 维护全局 Loading 计数器，防止并发请求时 Loading 提前隐藏
+let activeLoadingCount = 0
+
+function showGlobalLoading() {
+  if (activeLoadingCount === 0) {
+    uni.showLoading({ title: '加载中', mask: true })
+  }
+  activeLoadingCount++
+}
+
+function hideGlobalLoading() {
+  if (activeLoadingCount > 0) {
+    activeLoadingCount--
+  }
+  if (activeLoadingCount === 0) {
+    uni.hideLoading()
+  }
+}
+
 export function request<T = unknown>(options: RequestOptions): Promise<T> {
-  const {
-    url,
-    method = 'GET',
-    data,
-    header = {},
-    auth = true,
-    loading = false,
-    showError = true,
-  } = options
+  const { url, method = 'GET', data, header = {}, auth = true, loading = true, showError = true } = options
 
   if (loading) {
-    uni.showLoading({ title: '加载中', mask: true })
+    showGlobalLoading()
   }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...header,
+    ...header
   }
 
   if (auth) {
@@ -76,11 +87,11 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: buildUrl(url),
-      method,
+      method: method as any,
       data: data as UniApp.RequestOptions['data'],
       header: headers,
       timeout: env.timeout,
-      success: (res) => {
+      success: res => {
         const status = res.statusCode || 0
         if (status < 200 || status >= 300) {
           const msg = `网络错误 (${status})`
@@ -93,13 +104,8 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
 
         const body = res.data as ApiResult<T> | T
 
-        // 标准业务包装
-        if (
-          body &&
-          typeof body === 'object' &&
-          'code' in (body as object) &&
-          typeof (body as ApiResult).code === 'number'
-        ) {
+        // 标准业务包装处理
+        if (body && typeof body === 'object' && 'code' in (body as object) && typeof (body as ApiResult).code === 'number') {
           const wrapped = body as ApiResult<T>
           if (wrapped.code === 0 || wrapped.code === 200) {
             resolve(wrapped.data as T)
@@ -108,8 +114,13 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
           if (wrapped.code === 401) {
             clearToken()
             if (showError) {
-              uni.showToast({ title: '请重新登录', icon: 'none' })
+              uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
             }
+            // 自动重定向至登录页面（可根据项目实际登录页路径调整）
+            // setTimeout(() => {
+            //   uni.reLaunch({ url: '/pages/login/index' })
+            // }, 1000)
+
             reject(new Error(wrapped.message || '未授权'))
             return
           }
@@ -124,7 +135,7 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
         // 无包装，直接返回 body
         resolve(body as T)
       },
-      fail: (err) => {
+      fail: err => {
         const msg = err.errMsg || '网络异常'
         if (showError) {
           uni.showToast({ title: msg, icon: 'none' })
@@ -133,24 +144,25 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
       },
       complete: () => {
         if (loading) {
-          uni.hideLoading()
+          hideGlobalLoading()
         }
-      },
+      }
     })
   })
 }
 
 export const http = {
+  // 使用解构确保 method 不会被传入的 opts 意外篡改
   get<T = unknown>(url: string, data?: Record<string, unknown>, opts?: Partial<RequestOptions>) {
-    return request<T>({ url, method: 'GET', data, ...opts })
+    return request<T>({ ...opts, url, method: 'GET', data })
   },
-  post<T = unknown>(url: string, data?: Record<string, unknown>, opts?: Partial<RequestOptions>) {
-    return request<T>({ url, method: 'POST', data, ...opts })
+  post<T = unknown>(url: string, data?: Record<string, unknown> | unknown, opts?: Partial<RequestOptions>) {
+    return request<T>({ ...opts, url, method: 'POST', data })
   },
-  put<T = unknown>(url: string, data?: Record<string, unknown>, opts?: Partial<RequestOptions>) {
-    return request<T>({ url, method: 'PUT', data, ...opts })
+  put<T = unknown>(url: string, data?: Record<string, unknown> | unknown, opts?: Partial<RequestOptions>) {
+    return request<T>({ ...opts, url, method: 'PUT', data })
   },
   delete<T = unknown>(url: string, data?: Record<string, unknown>, opts?: Partial<RequestOptions>) {
-    return request<T>({ url, method: 'DELETE', data, ...opts })
-  },
+    return request<T>({ ...opts, url, method: 'DELETE', data })
+  }
 }
