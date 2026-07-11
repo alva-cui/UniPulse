@@ -6,15 +6,12 @@ export interface HealthInfo {
   service?: string
 }
 
-/** 后端健康检查（需后端实现 GET /api/health） */
+/** 探测接口：最终路径 = env.apiBaseUrl + '/hello'（H5 如 /dev-api/hello） */
 export function fetchHealth() {
-  return http.get<HealthInfo>(
-    '/health', // 接口地址
-    undefined, // 参数
-    {
-      auth: false, // 是否携带 token
-      loading: false, // 是否显示 loading
-      showError: false // 失败是否 toast
-    }
-  )
+  return http.get<HealthInfo>('/hello', undefined, {
+    auth: false,
+    loading: false,
+    showError: false
+  })
 }
+

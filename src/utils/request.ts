@@ -18,7 +18,7 @@ export interface RequestOptions {
   header?: Record<string, string>
   /** 是否携带 token，默认 true */
   auth?: boolean
-  /** 是否显示 loading，默认 false */
+  /** 是否显示 loading，默认 true */
   loading?: boolean
   /** 失败是否 toast，默认 true */
   showError?: boolean

@@ -49,7 +49,7 @@ pnpm run dev:h5
 2. 用微信开发者工具导入目录：`dist/dev/mp-weixin`
 3. 在 `src/manifest.json` → `mp-weixin.appid` 填真实 appid
 4. 小程序后台配置 request 合法域名；开发阶段可在开发者工具关闭域名校验
-5. 真机调试时把 `src/config/env.ts` 里的开发 API 改成电脑局域网 IP（不能用 `127.0.0.1`）
+5. 真机调试时在 `.env.development` 把 `VITE_APP_API_BASE_URL` 改成电脑局域网 IP（不能用 `localhost`）
 
 ### App
 
@@ -58,10 +58,18 @@ pnpm run dev:h5
 
 ## 环境变量
 
-| 变量                | 说明                                          |
-| ------------------- | --------------------------------------------- |
-| `VITE_API_BASE_URL` | 后端 API 前缀（生产必填完整 HTTPS 域名）      |
-| `VITE_PROXY_TARGET` | H5 开发代理目标，默认 `http://127.0.0.1:3000` |
+| 变量                    | 说明                                             |
+| ----------------------- | ------------------------------------------------ |
+| `VITE_APP_TITLE`        | 应用标题                                         |
+| `VITE_APP_API_BASE_URL` | 真实后端（小程序/App 直连；H5 开发代理目标）     |
+| `VITE_APP_BASE_API`     | H5 请求前缀（开发 `/dev-api`，生产 `/prod-api`） |
+| `VITE_APP_PORT`         | H5 开发端口，默认 `9527`                         |
+| `VITE_APP_CONTEXT_PATH` | H5 部署子路径，默认 `/h5/`                       |
+| `VITE_APP_ENV`          | 业务环境标识                                     |
+
+- **H5**：请求走 `BASE_API`，开发时 Vite 代理到 `API_BASE_URL`（并去掉前缀）
+- **小程序 / App**：请求直接打到 `API_BASE_URL`
+- H5 开发地址一般为 `http://127.0.0.1:9527/h5/`
 
 ## 生产构建
 

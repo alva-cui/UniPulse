@@ -31,7 +31,7 @@
       </view>
     </view>
 
-    <button class="btn" type="primary" :loading="loading" @click="checkHealth">探测后端 /api/health</button>
+    <button class="btn" type="primary" :loading="loading" @click="checkHealth">探测后端 /hello</button>
 
     <view class="tips">
       <text class="tip-title">常用命令</text>
@@ -48,7 +48,7 @@
 import { ref, onMounted } from 'vue'
 import { APP_NAME, env } from '@/config/env'
 import { getCompilePlatform, getSystemInfo } from '@/utils/platform'
-// import { fetchHealth } from '@/api/health'
+import { fetchHealth } from '@/api/health'
 
 const appName = APP_NAME
 const platform = ref(getCompilePlatform())
@@ -79,9 +79,8 @@ async function checkHealth() {
   loading.value = true
   healthText.value = '请求中…'
   try {
-    // const data = await fetchHealth()
-    // healthText.value = data?.status ? `${data.status}${data.service ? ` · ${data.service}` : ''}` : 'ok'
-    healthText.value = 'ok'
+    const data = await fetchHealth()
+    healthText.value = data?.status ? `${data.status}${data.service ? ` · ${data.service}` : ''}` : 'ok'
     healthOk.value = true
   } catch (e) {
     healthOk.value = false
