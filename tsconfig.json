@@ -10,7 +10,7 @@
     "lib": ["esnext", "dom"],
 
     // 1. 扩充类型声明（加入微信小程序类型和 uni-helper 类型）
-    "types": ["@dcloudio/types", "@uni-helper/uni-app-types"],
+    "types": ["@dcloudio/types", "@uni-helper/uni-app-types", "@wot-ui/ui/global"],
 
     // 2. 忽略第三方声明文件的类型检查（防止各种外部库冲突导致打包失败）
     "skipLibCheck": true,

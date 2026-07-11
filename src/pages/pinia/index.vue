@@ -18,9 +18,9 @@
 
     <!-- 操作方法 -->
     <view class="button-group">
-      <button class="btn btn-primary" @tap="increment">增加 +1</button>
-      <button class="btn btn-danger" @tap="decrement">减少 -1</button>
-      <button class="btn btn-default" @tap="reset">重置数据</button>
+      <wd-button round @tap="increment">增加 +1</wd-button>
+      <wd-button type="info" round @tap="decrement">减少 -1</wd-button>
+      <wd-button type="warning" round @tap="reset">重置数据</wd-button>
     </view>
   </view>
 </template>

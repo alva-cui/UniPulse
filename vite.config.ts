@@ -41,6 +41,14 @@ export default defineConfig(({ mode }) => {
       warmup: {
         clientFiles: ['./src/main.ts', './src/App.vue']
       }
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern-compiler',
+          silenceDeprecations: ['legacy-js-api']
+        }
+      }
     }
   }
 })
