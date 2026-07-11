@@ -1,23 +1,37 @@
 <template>
-  <!-- 容器绑定唯一 ID，用于动态测量尺寸 -->
-  <view :id="'container-' + canvasId" class="chart-container" :style="{ width: width, height: height }">
-    <!-- 1. 微信小程序平台：使用 Canvas 2D 提升高清屏表现 -->
+  <view :id="containerDomId" class="chart-container" :style="{ width: width, height: height }">
+    <!-- 微信小程序：Canvas 2D 高清 -->
     <!-- #ifdef MP-WEIXIN -->
-    <canvas type="2d" :id="canvasId" class="chart-canvas" @touchstart="onTouch" @touchmove="onTouchMove" @touchend="onTouchEnd" />
+    <canvas
+      type="2d"
+      :id="resolvedCanvasId"
+      class="chart-canvas"
+      @touchstart="onTouch"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @click="onClick"
+    />
     <!-- #endif -->
 
-    <!-- 2. H5、Android/iOS App 及其他平台：使用标准 Canvas，固定 pixelRatio: 1 保证极佳稳定性 -->
+    <!-- H5 / App / 其它端：标准 canvas，pixelRatio 固定 1 保稳定 -->
     <!-- #ifndef MP-WEIXIN -->
-    <canvas :canvas-id="canvasId" :id="canvasId" class="chart-canvas" @touchstart="onTouch" @touchmove="onTouchMove" @touchend="onTouchEnd" />
+    <canvas
+      :canvas-id="resolvedCanvasId"
+      :id="resolvedCanvasId"
+      class="chart-canvas"
+      @touchstart="onTouch"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @click="onClick"
+    />
     <!-- #endif -->
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, getCurrentInstance, watch, nextTick, onBeforeUnmount } from 'vue'
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import uCharts from '@qiun/ucharts'
 
-// 定义标准的图表数据格式
 interface ChartSeries {
   name?: string
   data: number | number[] | any[]
@@ -29,9 +43,9 @@ interface ChartData {
   series: ChartSeries[]
 }
 
-// 接收外部传入的图表配置
 interface Props {
-  canvasId: string
+  /** 可选；不传时组件内自动生成，保证页内唯一 */
+  canvasId?: string
   type: 'line' | 'column' | 'mount' | 'area' | 'ring' | 'pie' | 'arc' | 'gauge' | 'radar'
   chartData: ChartData
   opts?: Record<string, any>
@@ -40,26 +54,58 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  canvasId: '',
   width: '100%',
   height: '350rpx',
   opts: () => ({})
 })
 
 const instance = getCurrentInstance()
-let uChartsInstance: any = null
 
-// 处理图表点击（如显示 Tooltip 信息）
-const onTouch = (e: any) => {
-  if (uChartsInstance) {
-    uChartsInstance.showToolTip(e, {
-      format: (item: any, category: any) => {
-        return (category ? category + ' ' : '') + item.name + ': ' + item.data
-      }
-    })
+/** 自动 id：仅字母数字下划线，避免 selector 特殊字符 */
+const autoId = `uchart_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+const resolvedCanvasId = computed(() => {
+  const id = (props.canvasId || '').trim()
+  return id || autoId
+})
+const containerDomId = computed(() => `container-${resolvedCanvasId.value}`)
+
+let uChartsInstance: any = null
+let lastSize = { width: 0, height: 0 }
+let measureRetryCount = 0
+let initTimer: ReturnType<typeof setTimeout> | null = null
+let disposed = false
+
+const MAX_MEASURE_RETRY = 12
+const MEASURE_RETRY_MS = 50
+const INIT_DEBOUNCE_MS = 16
+const SIZE_EPSILON = 1
+
+const clearInitTimer = () => {
+  if (initTimer != null) {
+    clearTimeout(initTimer)
+    initTimer = null
   }
 }
 
-// 支持图表横向拖拽滚动
+const destroyChart = () => {
+  clearInitTimer()
+  uChartsInstance = null
+  lastSize = { width: 0, height: 0 }
+}
+
+const onTouch = (e: any) => {
+  if (!uChartsInstance) return
+  if (props.opts?.enableScroll) {
+    uChartsInstance.scrollStart?.(e)
+  }
+  uChartsInstance.showToolTip(e, {
+    format: (item: any, category: any) => {
+      return (category ? category + ' ' : '') + item.name + ': ' + item.data
+    }
+  })
+}
+
 const onTouchMove = (e: any) => {
   if (uChartsInstance && props.opts?.enableScroll) {
     uChartsInstance.scroll(e)
@@ -72,74 +118,34 @@ const onTouchEnd = (e: any) => {
   }
 }
 
-// 初始化图表核心逻辑
-const initChart = () => {
-  if (!instance) return
-
-  // 使用 SelectorQuery 动态读取容器的物理高宽，自适应各种弹性布局
-  const query = uni.createSelectorQuery().in(instance)
-  query
-    .select(`#container-${props.canvasId}`)
-    .boundingClientRect((rect: any) => {
-      if (!rect) return
-      const width = rect.width
-      const height = rect.height
-
-      // #ifdef MP-WEIXIN
-      // 微信小程序平台：依然支持 Canvas 2D 高清缩放
-      const dpr = uni.getSystemInfoSync().pixelRatio || 1
-      const canvasQuery = uni.createSelectorQuery().in(instance)
-      canvasQuery
-        .select(`#${props.canvasId}`)
-        .fields({ node: true, size: true }, (res: any) => {
-          if (!res || !res.node) {
-            fallbackInit(width, height)
-            return
-          }
-          const canvas = res.node
-          const ctx = canvas.getContext('2d', { willReadFrequently: true })
-
-          canvas.width = width * dpr
-          canvas.height = height * dpr
-          ctx.scale(dpr, dpr) // 👈 底层已经做了物理高清放大
-
-          uChartsInstance = new uCharts({
-            type: props.type,
-            context: ctx,
-            canvas2d: true,
-            pixelRatio: 1,
-            width: width,
-            height: height,
-            ...getCommonConfig()
-          })
-        })
-        .exec()
-      // #endif
-
-      // #ifndef MP-WEIXIN
-      // H5、Android/iOS App 等平台：一律采用最稳定的标准 1:1 模式初始化
-      fallbackInit(width, height)
-      // #endif
-    })
-    .exec()
-}
-
-// 传统 Canvas 初始化
-const fallbackInit = (width: number, height: number) => {
-  const ctx = uni.createCanvasContext(props.canvasId, instance)
-  uChartsInstance = new uCharts({
-    type: props.type,
-    context: ctx,
-    pixelRatio: 1, // 👈 强制固定为 1，确保字体与比例在各种 Android/H5 屏幕下大小完全正常
-    width: width,
-    height: height,
-    ...getCommonConfig()
+/** 桌面 H5：用 click 补 Tooltip */
+const onClick = (e: any) => {
+  if (!uChartsInstance) return
+  // #ifdef H5
+  uChartsInstance.showToolTip(e, {
+    format: (item: any, category: any) => {
+      return (category ? category + ' ' : '') + item.name + ': ' + item.data
+    }
   })
+  // #endif
 }
 
-// 提取通用默认配置
+const formatSeries = (type: string, series: any[]) => {
+  if (!series || series.length === 0) return []
+
+  if (['pie', 'ring', 'rose'].includes(type)) {
+    if (series.length === 1 && Array.isArray(series[0].data)) {
+      return series[0].data.map((item: any) => ({
+        name: item.name,
+        data: typeof item.value === 'number' ? item.value : item.data
+      }))
+    }
+  }
+  return series
+}
+
 const getCommonConfig = () => {
-  const defaultExtra = {
+  const defaultExtra: Record<string, Record<string, any>> = {
     pie: {
       activeOpacity: 0.5,
       activeRadius: 10,
@@ -169,12 +175,13 @@ const getCommonConfig = () => {
   }
 
   const userExtra = props.opts?.extra || {}
+  // 先展开用户 extra，再覆盖深合并后的已知类型，避免浅覆盖冲掉默认字段
   const mergedExtra = {
+    ...userExtra,
     pie: { ...defaultExtra.pie, ...userExtra.pie },
     ring: { ...defaultExtra.ring, ...userExtra.ring },
     rose: { ...defaultExtra.rose, ...userExtra.rose },
-    column: { ...defaultExtra.column, ...userExtra.column },
-    ...userExtra
+    column: { ...defaultExtra.column, ...userExtra.column }
   }
 
   return {
@@ -192,60 +199,174 @@ const getCommonConfig = () => {
   }
 }
 
-// 智能转换 ECharts 风格数据
-const formatSeries = (type: string, series: any[]) => {
-  if (!series || series.length === 0) return []
-
-  if (['pie', 'ring', 'rose'].includes(type)) {
-    if (series.length === 1 && Array.isArray(series[0].data)) {
-      return series[0].data.map((item: any) => ({
-        name: item.name,
-        data: typeof item.value === 'number' ? item.value : item.data
-      }))
-    }
-  }
-  return series
+const fallbackInit = (width: number, height: number) => {
+  if (disposed || !instance) return
+  const ctx = uni.createCanvasContext(resolvedCanvasId.value, instance)
+  uChartsInstance = new uCharts({
+    type: props.type,
+    context: ctx,
+    pixelRatio: 1,
+    width,
+    height,
+    ...getCommonConfig()
+  })
+  lastSize = { width, height }
 }
 
-// 监听数据源变动
+const createChart = (width: number, height: number) => {
+  if (disposed || !instance) return
+
+  // #ifdef MP-WEIXIN
+  const dpr = uni.getSystemInfoSync().pixelRatio || 1
+  uni
+    .createSelectorQuery()
+    .in(instance)
+    .select(`#${resolvedCanvasId.value}`)
+    .fields({ node: true, size: true }, (res: any) => {
+      if (disposed) return
+      if (!res || !res.node) {
+        fallbackInit(width, height)
+        return
+      }
+      const canvas = res.node
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+      ctx.scale(dpr, dpr)
+
+      uChartsInstance = new uCharts({
+        type: props.type,
+        context: ctx,
+        canvas2d: true,
+        pixelRatio: 1,
+        width,
+        height,
+        ...getCommonConfig()
+      })
+      lastSize = { width, height }
+    })
+    .exec()
+  // #endif
+
+  // #ifndef MP-WEIXIN
+  fallbackInit(width, height)
+  // #endif
+}
+
+const measureAndInit = () => {
+  if (disposed || !instance) return
+
+  uni
+    .createSelectorQuery()
+    .in(instance)
+    .select(`#${containerDomId.value}`)
+    .boundingClientRect((rect: any) => {
+      if (disposed) return
+      if (!rect || rect.width <= 0 || rect.height <= 0) {
+        if (measureRetryCount < MAX_MEASURE_RETRY) {
+          measureRetryCount += 1
+          clearInitTimer()
+          initTimer = setTimeout(() => {
+            initTimer = null
+            measureAndInit()
+          }, MEASURE_RETRY_MS)
+        }
+        return
+      }
+
+      measureRetryCount = 0
+      const width = rect.width
+      const height = rect.height
+
+      // 尺寸几乎不变且已有实例时，避免无意义重建
+      if (
+        uChartsInstance &&
+        Math.abs(width - lastSize.width) < SIZE_EPSILON &&
+        Math.abs(height - lastSize.height) < SIZE_EPSILON
+      ) {
+        return
+      }
+
+      uChartsInstance = null
+      createChart(width, height)
+    })
+    .exec()
+}
+
+/** 防抖调度初始化（opts/type/resize 共用） */
+const scheduleInit = (force = false) => {
+  if (disposed) return
+  if (force) {
+    measureRetryCount = 0
+    uChartsInstance = null
+  }
+  clearInitTimer()
+  initTimer = setTimeout(() => {
+    initTimer = null
+    measureAndInit()
+  }, INIT_DEBOUNCE_MS)
+}
+
+const updateChartData = (data: ChartData) => {
+  if (!uChartsInstance) {
+    scheduleInit(true)
+    return
+  }
+  uChartsInstance.updateData({
+    categories: data.categories || [],
+    series: formatSeries(props.type, data.series || []),
+    scrollPosition: 'left'
+  })
+}
+
 watch(
   () => props.chartData,
   newVal => {
-    if (uChartsInstance) {
-      uChartsInstance.updateData({
-        categories: newVal.categories || [],
-        series: formatSeries(props.type, newVal.series || []),
-        scrollPosition: 'left'
-      })
-    } else {
-      initChart()
-    }
+    updateChartData(newVal)
   },
   { deep: true }
 )
 
-// 监听配置选项发生变化
 watch(
-  () => [props.opts, props.type],
+  () => [props.opts, props.type, props.width, props.height, resolvedCanvasId.value] as const,
   () => {
-    nextTick(() => {
-      initChart()
-    })
+    nextTick(() => scheduleInit(true))
   },
   { deep: true }
 )
+
+const onWindowResize = () => {
+  scheduleInit(false)
+}
 
 onMounted(() => {
-  // 延时 100ms 首次获取正确的页面尺寸进行初始化
-  setTimeout(() => {
-    initChart()
-  }, 100)
+  disposed = false
+  nextTick(() => scheduleInit(true))
+
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', onWindowResize)
+  }
+  // #endif
 })
 
 onBeforeUnmount(() => {
-  if (uChartsInstance) {
-    uChartsInstance = null
+  disposed = true
+  destroyChart()
+
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', onWindowResize)
   }
+  // #endif
+})
+
+defineExpose({
+  /** 强制按当前容器尺寸重建 */
+  resize: () => scheduleInit(true),
+  /** 重新初始化（配置/类型变更后） */
+  refresh: () => scheduleInit(true),
+  getInstance: () => uChartsInstance
 })
 </script>
 
